@@ -1,0 +1,19 @@
+#!/bin/bash -ex
+
+# Download gas.zip from S3
+aws s3 cp s3://mpcs-students/jfpan01/gas.zip /tmp/gas.zip
+
+# Unzip to /home/ubuntu/gas
+cd /home/ubuntu
+unzip -q /tmp/gas.zip -d /home/ubuntu
+
+# Change ownership to ubuntu:ubuntu for all GAS files
+chown -R ubuntu:ubuntu /home/ubuntu/gas
+
+# Make run_ann.sh executable
+chmod +x /home/ubuntu/gas/ann/run_ann.sh
+
+# Run the annotator as ubuntu user
+sudo -u ubuntu bash -c "cd /home/ubuntu/gas/ann && /home/ubuntu/gas/ann/run_ann.sh"
+
+### EOUserData

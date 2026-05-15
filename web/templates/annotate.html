@@ -1,0 +1,125 @@
+<!--
+annotate.html - Direct upload to Amazon S3 using signed POST request
+Copyright (C) 2015-2024 Vas Vasiliadis <vas@uchicago.edu>
+University of Chicago
+-->
+
+{% extends "base.html" %}
+
+{% block title %}Annotate{% endblock %}
+
+{% block body %}
+
+    {% include "header.html" %}
+
+    <div class="container">
+    
+        <div class="page-header">
+            <h1>Annotate VCF File</h1>
+        </div>
+
+        <div class="form-wrapper">
+            <form role="form" action="{{ s3_post.url }}" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                {% for key, value in s3_post.fields.items() %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}" />
+                {% endfor %}
+
+                <div class="row">
+                    <div class="form-group col-md-6">
+                        <label for="upload">Select VCF Input File</label>
+                        <div class="input-group col-md-12">
+                            <span class="input-group-btn">
+                                <span class="btn btn-default btn-file btn-lg">Browse&hellip; <input type="file" name="file" id="upload-file" /></span>
+                            </span>
+                            <input type="text" class="form-control col-md-6 input-lg" readonly />
+                        </div>
+                    </div>
+                </div>
+
+                <br />
+
+                <div class="form-actions">
+                    <input class="btn btn-lg btn-primary" type="submit" value="Annotate" id="annotateButton" />
+                </div>
+            </form>
+        </div>
+
+        <script>
+        // File size validation for free users and submit button management
+        $(document).ready(function() {
+            var userRole = "{{ role }}";
+            var maxFileSizeKB = 150;
+            var maxFileSizeBytes = maxFileSizeKB * 1024; // 150 KB = 153600 bytes
+            var fileInput = $('#upload-file');
+            var submitButton = $('#annotateButton');
+            var selectedFile = null;
+            
+            // Disable submit button initially
+            submitButton.prop('disabled', true);
+            
+            // Handle file selection
+            fileInput.on('change', function(e) {
+                var files = e.target.files;
+                
+                if (files && files.length > 0) {
+                    selectedFile = files[0];
+                    var fileName = selectedFile.name;
+                    var fileSize = selectedFile.size;
+                    
+                    // Update the display text with selected filename
+                    $(this).parent().parent().next('.form-control').val(fileName);
+                    
+                    // Check if user is free and file is too large
+                    if (userRole === 'free_user' && fileSize > maxFileSizeBytes) {
+                        var fileSizeKB = Math.round(fileSize / 1024);
+                        alert('File size (' + fileSizeKB + ' KB) exceeds the ' + maxFileSizeKB + 
+                              ' KB limit for free users.\n\nPlease upgrade to Premium to annotate larger files.');
+                        
+                        // Clear the file input
+                        fileInput.val('');
+                        $(this).parent().parent().next('.form-control').val('');
+                        selectedFile = null;
+                        
+                        // Keep submit button disabled
+                        submitButton.prop('disabled', true);
+                        
+                        // Optionally redirect to subscribe page
+                        var upgradeNow = confirm('Would you like to upgrade to Premium now?');
+                        if (upgradeNow) {
+                            window.location.href = "{{ url_for('subscribe') }}";
+                        }
+                    } else {
+                        // Valid file selected, enable submit button
+                        submitButton.prop('disabled', false);
+                    }
+                } else {
+                    // No file selected, disable submit button
+                    submitButton.prop('disabled', true);
+                    $(this).parent().parent().next('.form-control').val('');
+                }
+            });
+            
+            // Additional validation on form submit
+            $('form').on('submit', function(e) {
+                if (!selectedFile) {
+                    e.preventDefault();
+                    alert('Please select a file to annotate.');
+                    return false;
+                }
+                
+                if (userRole === 'free_user' && selectedFile.size > maxFileSizeBytes) {
+                    e.preventDefault();
+                    alert('File size exceeds the limit for free users. Please upgrade to Premium.');
+                    return false;
+                }
+                
+                // Allow form submission
+                return true;
+            });
+        });
+        </script>
+    
+    </div> <!-- container -->
+
+{% endblock %}
